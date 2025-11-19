@@ -1,15 +1,40 @@
 # Estimator Generator
 
-This tool generates an interactive HTML estimator from a structured Markdown file.
+A Node.js CLI tool that transforms structured Markdown files into interactive HTML estimators for project planning.
+
+## Installation
+
+```bash
+# Install globally
+npm install -g estimator-generator
+
+# Or use npx directly
+npx estimator-generator <path-to-markdown-file> [subtitle]
+```
 
 ## Usage
 
 ```bash
+# Using the global command
+estimator <path-to-markdown-file> [subtitle]
+
+# Using npx
+npx estimator-generator <path-to-markdown-file> [subtitle]
+
+# Using node directly
 node src/generate.js <path-to-markdown-file> [subtitle]
 ```
 
 - `<path-to-markdown-file>`: Path to the source Markdown file (required).
 - `[subtitle]`: Optional subtitle to display in the header (defaults to current date).
+
+### Example
+
+```bash
+estimator examples/sample-project.md "Q1 2025"
+```
+
+Output: Creates `sample-project-estimator.html` in the same directory as the input file.
 
 ## Markdown Format
 
@@ -77,3 +102,11 @@ Initialize the project repository and configure build tools.
 ```
 
 Note: The `---` separator is optional but recommended for readability in the raw Markdown.
+
+## Examples
+
+See the `examples/` directory for sample Markdown files.
+
+## License
+
+ISC

@@ -11,15 +11,31 @@
   ],
   "scripts": {
     "start": "node src/generate.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "echo 'Ready to publish!'"
   },
   "keywords": [
     "estimator",
     "markdown",
     "html",
-    "planning"
+    "planning",
+    "project-management",
+    "story-points",
+    "agile",
+    "cli"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "mkaczkowski",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mkaczkowski/estimator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mkaczkowski/estimator/issues"
+  },
+  "homepage": "https://github.com/mkaczkowski/estimator#readme",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "dependencies": {}
 }
