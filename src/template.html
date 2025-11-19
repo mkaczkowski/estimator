@@ -159,7 +159,7 @@
 
             const phaseRegex = /^## Phase (\d+): (.+)/;
             const taskRegex = /^### Task (\d+(?:\.\d+)?): (.+)/;
-            const pointsRegex = /\*\*Story Points:\s*\((\d+(?:-\d+)?)\)\*\*/;
+            const pointsRegex = /\*\*Story Points:\*\*\s*(\d+(?:-\d+)?)/;
             
             const saveSection = () => {
                 if (currentTask && currentSection && rawSectionContent.length > 0) {

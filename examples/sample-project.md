@@ -28,7 +28,7 @@
 
 ### Task 1.1: Project Initialization
 
-**Story Points: (2)**
+**Story Points:** 2
 
 **Description:**
 Set up the initial project structure with configuration files and dependencies.
@@ -57,7 +57,7 @@ Set up the initial project structure with configuration files and dependencies.
 
 ### Task 2.1: User Interface Components
 
-**Story Points: (3)**
+**Story Points:** 3
 
 **Description:**
 Create the main UI components for the application.
@@ -83,7 +83,7 @@ Create the main UI components for the application.
 
 ### Task 2.2: Data Management
 
-**Story Points: (5)**
+**Story Points:** 5
 
 **Description:**
 Implement data fetching, state management, and data transformation logic.
@@ -114,7 +114,7 @@ Implement data fetching, state management, and data transformation logic.
 
 ### Task 3.1: Testing and Documentation
 
-**Story Points: (3)**
+**Story Points:** 3
 
 **Description:**
 Write tests and documentation for the application.

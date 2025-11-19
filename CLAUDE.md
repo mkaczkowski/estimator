@@ -50,7 +50,7 @@ Markdown File → generate.js → Base64 encode → Inject into template.html �
 The template.html parser expects these exact regex patterns:
 - Phase: `/^## Phase (\d+): (.+)/`
 - Task: `/^### Task (\d+(?:\.\d+)?): (.+)/`
-- Story Points: `/\*\*Story Points:\s*\((\d+(?:-\d+)?)\)\*\*/`
+- Story Points: `/\*\*Story Points:\*\*\s*(\d+(?:-\d+)?)/`
 - Sections: `**Description:**`, `**Deliverables:**`, `**Acceptance Criteria:**`, `**Dependencies:**`, `**Risk:**`
 
 ### Template Placeholders
