@@ -1,8 +1,10 @@
+#!/usr/bin/env node
+
 const fs = require('fs');
 const path = require('path');
 
 if (process.argv.length < 3) {
-    console.error('Usage: node scripts/estimator/generate.js <path-to-markdown-file> [subtitle]');
+    console.error('Usage: estimator <path-to-markdown-file> [subtitle]');
     process.exit(1);
 }
 
