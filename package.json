@@ -1,7 +1,7 @@
 {
   "name": "execution-estimator",
   "version": "1.0.0",
-  "description": "Generates an interactive HTML execution estimator from a structured Markdown file.",
+  "description": "Generates an interactive HTML estimator from a structured Markdown file.",
   "main": "src/generate.js",
   "bin": {
     "estimator": "./src/generate.js"

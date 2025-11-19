@@ -1,4 +1,4 @@
-# Execution Estimator Generator
+# Estimator Generator
 
 This tool generates an interactive HTML estimator from a structured Markdown file.
 
@@ -18,7 +18,7 @@ The source Markdown file must follow a specific structure for the parser to work
 ### 1. Document Title
 The first H1 header is used as the estimator title.
 ```markdown
-# Project Name Execution Plan
+# Project Name Plan
 ```
 
 ### 2. Phases
