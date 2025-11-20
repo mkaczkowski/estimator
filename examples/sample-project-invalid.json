@@ -1,0 +1,59 @@
+{
+  "title": "Sample Project Estimation",
+  "description": "A sample project demonstrating the JSON estimator format with multiple phases and tasks.",
+  "phases": [
+    {
+      "objective": "Initialize project structure and development environment",
+      "tasks2": [
+        {
+          "id": "1.1",
+          "title": "Project Initialization",
+          "storyPoints": 2,
+          "description": "Set up the initial project structure with configuration files, dependencies, and development tooling.",
+          "deliverables": [
+            "Package.json with all dependencies",
+            "TypeScript configuration",
+            "ESLint and Prettier setup",
+            "Git repository initialization"
+          ],
+          "acceptanceCriteria": [
+            "All configuration files are created and valid",
+            "Dependencies install without errors",
+            "Development server starts successfully",
+            "Linting passes with no errors"
+          ],
+          "dependencies": [],
+          "risk": {
+            "level": "low"
+          }
+        },
+        {
+          "id": "12",
+          "title": "CI/CD Pipeline Setup",
+          "storyPoints": 3,
+          "description": "Configure continuous integration and deployment pipelines for automated testing and deployment.",
+          "deliverables": [
+            "GitHub Actions workflow files",
+            "Automated test runner configuration",
+            "Deployment scripts",
+            "Environment variable management"
+          ],
+          "acceptanceCriteria": [
+            "CI pipeline runs on every push",
+            "Tests execute automatically",
+            "Deployment triggers on main branch merge",
+            "Secrets are properly managed"
+          ],
+          "dependencies": [
+            {
+              "taskId": "1.1"
+            }
+          ],
+          "risk": {
+            "level": "low"
+          }
+        }
+      ]
+    }
+  ]
+}

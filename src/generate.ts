@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import Ajv from 'ajv';
+import AjvModule from 'ajv';
+const Ajv = AjvModule.default || AjvModule;
 import type { EstimatorData } from './types.ts';
 
 // ES module equivalent of __dirname
@@ -12,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Use createRequire for JSON imports (avoids experimental warning)
-const require = createRequire(import.meta.url);
+const nodeRequire = createRequire(import.meta.url);
 
 interface PackageJson {
     name: string;
@@ -23,8 +24,8 @@ interface NodeError extends Error {
     code?: string;
 }
 
-const packageJson: PackageJson = require('../package.json');
-const schema = require('./schema.json');
+const packageJson: PackageJson = nodeRequire('../package.json');
+const schema = nodeRequire('./schema.json');
 
 // Initialize AJV validator
 const ajv = new Ajv({ allErrors: true });

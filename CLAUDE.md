@@ -92,7 +92,7 @@ JSON File → generate.ts → Validate → Inject as JS object → Output HTML
 
 - `{{TITLE}}` - Project title from JSON
 - `{{SUBTITLE}}` - CLI argument or current date
-- `{{DATA_BASE64}}` - Encoded JSON content
+- `{{DATA_JSON}}` - JSON data as JavaScript object literal
 
 ## Dependencies
 
