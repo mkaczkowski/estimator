@@ -8,20 +8,21 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* ============ BASE STYLES ============ */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
+
+        /* ============ COMPONENTS ============ */
         .task-card { transition: all 0.2s; }
         .task-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+
+        /* ============ SCROLLBAR ============ */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
-        .animate-slide-down { animation: slideDown 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Highlight animation for jump targets */
+
+        /* ============ ANIMATIONS ============ */
         @keyframes highlightPulse {
             0% { background-color: rgba(59, 130, 246, 0.1); }
             50% { background-color: rgba(59, 130, 246, 0.2); }
@@ -31,40 +32,39 @@
             animation: highlightPulse 2s ease-out;
         }
 
-        /* Markdown Styles within Details */
+        /* ============ MARKDOWN CONTENT ============ */
         .markdown-content {
             font-size: 0.95rem;
             color: #475569;
         }
-        
+
         /* Top level lists */
-        .markdown-content ul { 
-            list-style-type: disc; 
-            padding-left: 1.5em; 
-            margin-bottom: 0.5em; 
+        .markdown-content ul {
+            list-style-type: disc;
+            padding-left: 1.5em;
+            margin-bottom: 0.5em;
         }
-        .markdown-content ol { 
-            list-style-type: decimal; 
-            padding-left: 1.5em; 
-            margin-bottom: 0.5em; 
+        .markdown-content ol {
+            list-style-type: decimal;
+            padding-left: 1.5em;
+            margin-bottom: 0.5em;
         }
-        
-        /* Nested List Styles - Specific targeting to ensure indentation */
+
+        /* Nested list styles */
         .markdown-content li > ul,
         .markdown-content li > ol {
             margin-top: 0.25em;
             margin-bottom: 0.25em;
-            margin-left: 1.5em;      /* Move the container in */
-            padding-left: 0.5em;     /* Add padding for the bullets */
+            margin-left: 1.5em;
+            padding-left: 0.5em;
             list-style-position: outside;
         }
-        
-        /* Specific nested bullet styles to differentiate levels */
+
         .markdown-content ul ul,
         .markdown-content ol ul {
             list-style-type: circle;
         }
-        
+
         .markdown-content li { margin-bottom: 0.25em; }
         .markdown-content p { margin-bottom: 0.5em; }
         .markdown-content code { background-color: #f1f5f9; padding: 0.1em 0.3em; border-radius: 0.2em; font-size: 0.9em; color: #475569; font-family: monospace; }
@@ -128,9 +128,25 @@
     </div>
 
     <script>
-        // Embedded Markdown Source (Base64 Encoded)
+        // ============ CONSTANTS ============
         const MARKDOWN_BASE64 = "{{MARKDOWN_BASE64}}";
-        
+
+        const REGEX = {
+            phase: /^## Phase (\d+): (.+)/,
+            task: /^### Task (\d+(?:\.\d+)?): (.+)/,
+            points: /\*\*Story Points:\*\*\s*(\d+(?:-\d+)?)/
+        };
+
+        const RISK_CONFIG = {
+            high: { class: 'bg-red-100 text-red-700 border-red-200', label: 'High Risk' },
+            medium: { class: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'Medium Risk' },
+            low: { class: 'bg-green-100 text-green-700 border-green-200', label: 'Low Risk' }
+        };
+
+        // ============ STATE ============
+        let state = { phases: [] };
+
+        // ============ UTILITIES ============
         function decodeBase64(str) {
             try {
                 const binaryString = window.atob(str);
@@ -145,10 +161,79 @@
             }
         }
 
+        function findTask(taskId) {
+            for (const phase of state.phases) {
+                const task = phase.tasks.find(t => t.id === taskId);
+                if (task) return { task, phase };
+            }
+            return null;
+        }
+
+        function getRiskBadge(risk) {
+            const r = risk.toLowerCase();
+            let config;
+            if (r.includes('high')) config = RISK_CONFIG.high;
+            else if (r.includes('medium')) config = RISK_CONFIG.medium;
+            else config = RISK_CONFIG.low;
+
+            return `<span class="px-2 py-1 rounded ${config.class} text-[10px] font-bold uppercase tracking-wide border">${config.label}</span>`;
+        }
+
+        function formatDependencies(str) {
+            if (!str || str.trim().toLowerCase() === 'none') {
+                return '<p class="text-slate-400 italic text-sm">None</p>';
+            }
+            const parts = str.split(/,|\n/).map(s => s.trim()).filter(s => s);
+            if (parts.length === 0) return '';
+
+            let listHtml = '<ul class="space-y-1">';
+            parts.forEach(part => {
+                const match = part.match(/(Task\s+(\d+(?:\.\d+)?))/i);
+                if (match) {
+                    const taskId = match[2];
+                    listHtml += `<li><a href="#task-${taskId}-anchor" onclick="scrollToElement('task-${taskId}-anchor'); return false;" class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-1.5 py-0.5 -ml-1.5 rounded transition-colors font-medium"><i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${part}</a></li>`;
+                } else {
+                    listHtml += `<li class="text-slate-600 flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-slate-300"></span>${part}</li>`;
+                }
+            });
+            listHtml += '</ul>';
+            return listHtml;
+        }
+
+        function parseStoryPoints(str) {
+            if (str.includes('-')) {
+                const parts = str.split('-');
+                return (parseFloat(parts[0]) + parseFloat(parts[1])) / 2;
+            }
+            return parseFloat(str);
+        }
+
+        function getTaskModificationStatus(task) {
+            const isDelivModified = task.deliverables !== task.originalDeliverables;
+            const isAcModified = task.ac !== task.originalAc;
+            return {
+                isPointsModified: task.currentPoints !== task.originalPoints,
+                isDelivModified,
+                isAcModified,
+                isAnyContentModified: isDelivModified || isAcModified
+            };
+        }
+
+        function calculateTotals() {
+            let original = 0;
+            let current = 0;
+            state.phases.forEach(phase => {
+                phase.tasks.forEach(task => {
+                    original += task.originalPoints;
+                    current += task.currentPoints;
+                });
+            });
+            return { original, current };
+        }
+
         const MARKDOWN_SOURCE = decodeBase64(MARKDOWN_BASE64);
 
-        let state = { phases: [] };
-
+        // ============ PARSING ============
         function parseMarkdown(md) {
             const lines = md.split('\n');
             const phases = [];
@@ -156,10 +241,6 @@
             let currentTask = null;
             let currentSection = null;
             let rawSectionContent = [];
-
-            const phaseRegex = /^## Phase (\d+): (.+)/;
-            const taskRegex = /^### Task (\d+(?:\.\d+)?): (.+)/;
-            const pointsRegex = /\*\*Story Points:\*\*\s*(\d+(?:-\d+)?)/;
             
             const saveSection = () => {
                 if (currentTask && currentSection && rawSectionContent.length > 0) {
@@ -180,9 +261,9 @@
 
             lines.forEach(line => {
                 const trimmed = line.trim();
-                
+
                 // Phase
-                const phaseMatch = trimmed.match(phaseRegex);
+                const phaseMatch = trimmed.match(REGEX.phase);
                 if (phaseMatch) {
                     saveSection();
                     currentPhase = {
@@ -196,7 +277,7 @@
                 }
 
                 // Task
-                const taskMatch = trimmed.match(taskRegex);
+                const taskMatch = trimmed.match(REGEX.task);
                 if (taskMatch) {
                     saveSection();
                     currentTask = {
@@ -209,8 +290,8 @@
                         ac: "",
                         dependencies: "None",
                         risk: "Low",
-                        expanded: false, // UI State
-                        editingField: null // UI State
+                        expanded: false,
+                        editingField: null
                     };
                     if (currentPhase) currentPhase.tasks.push(currentTask);
                     currentSection = null;
@@ -218,17 +299,10 @@
                 }
 
                 // Points
-                if (currentTask && pointsRegex.test(trimmed)) {
-                    const pointsMatch = trimmed.match(pointsRegex);
-                    let pointsValStr = pointsMatch[1];
-                    let pointsVal = 0;
-                    if (pointsValStr.includes('-')) {
-                        const parts = pointsValStr.split('-');
-                        pointsVal = (parseFloat(parts[0]) + parseFloat(parts[1])) / 2;
-                    } else {
-                        pointsVal = parseFloat(pointsValStr);
-                    }
-                    
+                if (currentTask && REGEX.points.test(trimmed)) {
+                    const pointsMatch = trimmed.match(REGEX.points);
+                    const pointsVal = parseStoryPoints(pointsMatch[1]);
+
                     if (currentTask.originalPoints === 0) {
                         currentTask.originalPoints = pointsVal;
                         currentTask.currentPoints = pointsVal;
@@ -295,6 +369,7 @@
             return phases;
         }
 
+        // ============ TABLE OF CONTENTS ============
         function renderTOC() {
             const tocContainer = document.getElementById('toc-container');
             tocContainer.innerHTML = '';
@@ -329,278 +404,255 @@
             }
         }
 
+        // ============ RENDERING ============
+        function renderEditForm(taskId, type, value) {
+            return `
+                <div class="mt-2">
+                    <textarea id="edit-${taskId}-${type}" class="w-full h-48 p-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm">${value}</textarea>
+                    <div class="flex justify-end gap-2 mt-2">
+                        <button onclick="cancelEdit('${taskId}')" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>
+                        <button onclick="saveEdit('${taskId}', '${type}')" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm transition-colors">Save</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function parseMarkdownContent(type, rawValue) {
+            const value = rawValue || '';
+            if (type === 'deliverables') {
+                let count = 1;
+                const numbered = value.replace(/(^|\n)-\s+/g, (match, p1) => `${p1}${count++}. `);
+                return marked.parse(numbered);
+            }
+            if (type === 'ac') {
+                const cleaned = value.replace(/- \[([ x])\] /gm, '- ');
+                return marked.parse(cleaned);
+            }
+            return marked.parse(value);
+        }
+
+        function renderEditableContent(task, type, rawValue) {
+            if (task.editingField === type) {
+                return renderEditForm(task.id, type, rawValue);
+            }
+            const htmlContent = parseMarkdownContent(type, rawValue);
+            return `<div class="markdown-content text-slate-600 pl-2">${htmlContent}</div>`;
+        }
+
+        function renderTaskCard(task) {
+            const status = getTaskModificationStatus(task);
+            const riskBadge = getRiskBadge(task.risk);
+            const descriptionHtml = marked.parse(task.description || '');
+            const dependenciesHtml = formatDependencies(task.dependencies || '');
+
+            return `
+                <div class="flex items-start gap-5">
+                    <div class="mt-1">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs border border-slate-200 shadow-sm">
+                            ${task.id}
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0 overflow-hidden">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+                            <h3 class="font-bold text-slate-800 text-base break-words">${task.title}</h3>
+                            ${riskBadge}
+                            ${status.isAnyContentModified ? '<span class="px-2 py-1 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wide border border-purple-200">Modified</span>' : ''}
+                        </div>
+
+                        <div class="text-slate-600 text-sm leading-relaxed mb-3 line-clamp-2 text-ellipsis markdown-content">${descriptionHtml}</div>
+
+                        <div class="flex items-center gap-4">
+                            <button onclick="toggleDetails('${task.id}')" class="text-blue-600 text-xs font-semibold hover:text-blue-800 flex items-center gap-1.5 focus:outline-none group/btn transition-colors">
+                                <div class="w-4 h-4 rounded bg-blue-50 flex items-center justify-center group-hover/btn:bg-blue-100 transition-colors">
+                                    <i class="fa-solid fa-chevron-right text-[8px] transition-transform duration-200 ${task.expanded ? 'rotate-90' : ''}" id="icon-${task.id.replace('.','-')}"></i>
+                                </div>
+                                ${task.expanded ? 'Hide Details' : 'View Details'}
+                            </button>
+                            ${(status.isPointsModified || status.isAnyContentModified) ? '<span class="text-[10px] text-amber-600 font-semibold flex items-center gap-1"><i class="fa-solid fa-pen-nib"></i> Updated</span>' : ''}
+                        </div>
+
+                        <div id="details-${task.id.replace('.','-')}" class="${task.expanded ? '' : 'hidden'} mt-5 bg-slate-50 rounded-lg border border-slate-200 p-5 text-sm">
+                            <div class="flex flex-col gap-8">
+                                <div>
+                                    <div class="flex justify-between items-center border-b border-slate-200 pb-2 mb-3">
+                                        <h4 class="font-bold text-slate-800 flex items-center gap-2">
+                                            <i class="fa-solid fa-box-open text-slate-400"></i> Deliverables
+                                            ${status.isDelivModified ? '<span class="w-2 h-2 rounded-full bg-purple-500" title="Edited"></span>' : ''}
+                                        </h4>
+                                        ${task.editingField !== 'deliverables' ? `<button onclick="enableEdit('${task.id}', 'deliverables')" class="text-blue-500 hover:text-blue-700 text-xs"><i class="fa-solid fa-pen"></i> Edit</button>` : ''}
+                                    </div>
+                                    ${renderEditableContent(task, 'deliverables', task.deliverables)}
+                                </div>
+
+                                <!-- Acceptance Criteria -->
+                                <div>
+                                    <div class="flex justify-between items-center border-b border-slate-200 pb-2 mb-3">
+                                        <h4 class="font-bold text-slate-800 flex items-center gap-2">
+                                            <i class="fa-solid fa-clipboard-check text-slate-400"></i> Acceptance Criteria
+                                            ${status.isAcModified ? '<span class="w-2 h-2 rounded-full bg-purple-500" title="Edited"></span>' : ''}
+                                        </h4>
+                                        ${task.editingField !== 'ac' ? `<button onclick="enableEdit('${task.id}', 'ac')" class="text-blue-500 hover:text-blue-700 text-xs"><i class="fa-solid fa-pen"></i> Edit</button>` : ''}
+                                    </div>
+                                    ${renderEditableContent(task, 'ac', task.ac)}
+                                </div>
+
+                                <!-- Dependencies -->
+                                <div>
+                                    <h4 class="font-bold text-slate-800 mb-3 flex items-center gap-2 border-b border-slate-200 pb-2">
+                                        <i class="fa-solid fa-diagram-project text-slate-400"></i> Dependencies
+                                    </h4>
+                                    <div class="markdown-content text-slate-600 pl-2">
+                                        ${dependenciesHtml}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="w-24 flex flex-col items-end gap-1 pl-4 border-l border-slate-100 flex-shrink-0">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Points</label>
+                        <input type="number"
+                               min="0"
+                               step="1"
+                               value="${task.currentPoints}"
+                               onchange="updatePoints('${task.id}', this.value)"
+                               class="w-full text-right text-xl font-bold ${status.isPointsModified ? 'text-amber-600 bg-amber-50 border-amber-300' : 'text-slate-700 bg-white border-slate-300'} border rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-blue-300">
+                        <div class="text-[10px] text-slate-400 font-medium mt-1">Orig: ${task.originalPoints}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function calculatePhaseTotals(phase) {
+            const original = phase.tasks.reduce((acc, t) => acc + t.originalPoints, 0);
+            const current = phase.tasks.reduce((acc, t) => acc + t.currentPoints, 0);
+            return { original, current };
+        }
+
+        function renderPhaseCard(phase) {
+            const { original, current } = calculatePhaseTotals(phase);
+
+            const phaseEl = document.createElement('div');
+            phaseEl.id = `phase-${phase.id}-anchor`;
+            phaseEl.className = 'bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden scroll-mt-20';
+
+            phaseEl.innerHTML = `
+                <div class="bg-slate-50/80 px-6 py-4 border-b border-slate-200 flex justify-between items-center backdrop-blur-sm sticky top-0 z-10">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-white border border-slate-200 text-slate-500 font-mono text-xs px-2 py-1 rounded shadow-sm">Phase ${phase.id}</span>
+                        <h2 class="text-lg font-bold text-slate-800">${phase.title}</h2>
+                    </div>
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="text-slate-400">${phase.tasks.length} tasks</span>
+                        <span class="w-px h-4 bg-slate-200"></span>
+                        <div class="font-semibold text-slate-700">Total: <span id="phase-${phase.id}-total" class="${current !== original ? 'text-amber-600' : 'text-blue-600'}">${current}</span> SP</div>
+                    </div>
+                </div>
+                <div class="divide-y divide-slate-100" id="phase-${phase.id}-tasks"></div>
+            `;
+
+            const tasksContainer = phaseEl.querySelector(`#phase-${phase.id}-tasks`);
+
+            phase.tasks.forEach(task => {
+                const taskEl = document.createElement('div');
+                taskEl.id = `task-${task.id}-anchor`;
+                taskEl.className = 'task-card p-6 hover:bg-blue-50/30 transition-colors group relative scroll-mt-32';
+                taskEl.innerHTML = renderTaskCard(task);
+                tasksContainer.appendChild(taskEl);
+            });
+
+            return { element: phaseEl };
+        }
+
         function render() {
             const container = document.getElementById('phases-container');
             container.innerHTML = '';
-            
-            let totalOriginal = 0;
-            let totalCurrent = 0;
 
             state.phases.forEach(phase => {
-                const phaseOriginal = phase.tasks.reduce((acc, t) => acc + t.originalPoints, 0);
-                const phaseCurrent = phase.tasks.reduce((acc, t) => acc + t.currentPoints, 0);
-                
-                totalOriginal += phaseOriginal;
-                totalCurrent += phaseCurrent;
-
-                const phaseEl = document.createElement('div');
-                phaseEl.id = `phase-${phase.id}-anchor`;
-                phaseEl.className = 'bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in scroll-mt-20';
-                
-                phaseEl.innerHTML = `
-                    <div class="bg-slate-50/80 px-6 py-4 border-b border-slate-200 flex justify-between items-center backdrop-blur-sm sticky top-0 z-10">
-                        <div class="flex items-center gap-3">
-                            <span class="bg-white border border-slate-200 text-slate-500 font-mono text-xs px-2 py-1 rounded shadow-sm">Phase ${phase.id}</span>
-                            <h2 class="text-lg font-bold text-slate-800">${phase.title}</h2>
-                        </div>
-                        <div class="flex items-center gap-4 text-sm">
-                           <span class="text-slate-400">${phase.tasks.length} tasks</span>
-                           <span class="w-px h-4 bg-slate-200"></span>
-                           <div class="font-semibold text-slate-700">Total: <span id="phase-${phase.id}-total" class="${phaseCurrent !== phaseOriginal ? 'text-amber-600' : 'text-blue-600'}">${phaseCurrent}</span> SP</div>
-                        </div>
-                    </div>
-                    <div class="divide-y divide-slate-100" id="phase-${phase.id}-tasks"></div>
-                `;
-
-                const tasksContainer = phaseEl.querySelector(`#phase-${phase.id}-tasks`);
-
-                phase.tasks.forEach(task => {
-                    const taskEl = document.createElement('div');
-                    taskEl.id = `task-${task.id}-anchor`;
-                    taskEl.className = 'task-card p-6 hover:bg-blue-50/30 transition-colors group relative scroll-mt-32';
-                    
-                    // Determine if modified
-                    const isPointsModified = task.currentPoints !== task.originalPoints;
-                    const isDelivModified = task.deliverables !== task.originalDeliverables;
-                    const isAcModified = task.ac !== task.originalAc;
-                    const isAnyContentModified = isDelivModified || isAcModified;
-
-                    let riskBadge = '';
-                    const r = task.risk.toLowerCase();
-                    if (r.includes('high')) riskBadge = '<span class="px-2 py-1 rounded bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wide border border-red-200">High Risk</span>';
-                    else if (r.includes('medium')) riskBadge = '<span class="px-2 py-1 rounded bg-yellow-100 text-yellow-700 text-[10px] font-bold uppercase tracking-wide border border-yellow-200">Medium Risk</span>';
-                    else riskBadge = '<span class="px-2 py-1 rounded bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wide border border-green-200">Low Risk</span>';
-
-                    // Render Content Logic
-                    const renderContent = (type, rawValue) => {
-                        if (task.editingField === type) {
-                            return `
-                                <div class="mt-2">
-                                    <textarea id="edit-${task.id}-${type}" class="w-full h-48 p-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm">${rawValue}</textarea>
-                                    <div class="flex justify-end gap-2 mt-2">
-                                        <button onclick="cancelEdit('${task.id}')" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>
-                                        <button onclick="saveEdit('${task.id}', '${type}')" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm transition-colors">Save</button>
-                                    </div>
-                                </div>
-                            `;
-                        } else {
-                            let htmlContent = '';
-                            if (type === 'deliverables') {
-                                let deliverableCount = 1;
-                                const deliverablesMd = (rawValue || '').replace(/(^|\n)-\s+/g, (match, p1) => `${p1}${deliverableCount++}. `);
-                                htmlContent = marked.parse(deliverablesMd);
-                            } else if (type === 'ac') {
-                                const acMd = (rawValue || '').replace(/- \[([ x])\] /gm, '- ');
-                                htmlContent = marked.parse(acMd);
-                            } else {
-                                htmlContent = marked.parse(rawValue || '');
-                            }
-                            return `<div class="markdown-content text-slate-600 pl-2">${htmlContent}</div>`;
-                        }
-                    };
-
-                    const descriptionHtml = marked.parse(task.description || '');
-                    
-                    // Dependencies
-                    const formatDependencies = (str) => {
-                        if (!str || str.trim().toLowerCase() === 'none') return '<p class="text-slate-400 italic text-sm">None</p>';
-                        const parts = str.split(/,|\n/).map(s => s.trim()).filter(s => s);
-                        if (parts.length === 0) return '';
-                        let listHtml = '<ul class="space-y-1">';
-                        parts.forEach(part => {
-                            const match = part.match(/(Task\s+(\d+(?:\.\d+)?))/i);
-                            if (match) {
-                                const taskId = match[2];
-                                listHtml += `<li><a href="#task-${taskId}-anchor" onclick="scrollToElement('task-${taskId}-anchor'); return false;" class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-1.5 py-0.5 -ml-1.5 rounded transition-colors font-medium"><i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${part}</a></li>`;
-                            } else {
-                                listHtml += `<li class="text-slate-600 flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-slate-300"></span>${part}</li>`;
-                            }
-                        });
-                        listHtml += '</ul>';
-                        return listHtml;
-                    };
-                    const dependenciesHtml = formatDependencies(task.dependencies || '');
-
-                    taskEl.innerHTML = `
-                        <div class="flex items-start gap-5">
-                             <div class="mt-1">
-                                <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs border border-slate-200 shadow-sm">
-                                    ${task.id}
-                                </div>
-                            </div>
-                            <div class="flex-1 min-w-0 overflow-hidden">
-                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-                                    <h3 class="font-bold text-slate-800 text-base break-words">${task.title}</h3>
-                                    ${riskBadge}
-                                    ${isAnyContentModified ? '<span class="px-2 py-1 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wide border border-purple-200">Modified</span>' : ''}
-                                </div>
-                                
-                                <div class="text-slate-600 text-sm leading-relaxed mb-3 line-clamp-2 text-ellipsis markdown-content">${descriptionHtml}</div>
-                                
-                                <div class="flex items-center gap-4">
-                                    <button onclick="toggleDetails('${task.id}')" class="text-blue-600 text-xs font-semibold hover:text-blue-800 flex items-center gap-1.5 focus:outline-none group/btn transition-colors">
-                                        <div class="w-4 h-4 rounded bg-blue-50 flex items-center justify-center group-hover/btn:bg-blue-100 transition-colors">
-                                            <i class="fa-solid fa-chevron-right text-[8px] transition-transform duration-200 ${task.expanded ? 'rotate-90' : ''}" id="icon-${task.id.replace('.','-')}"></i>
-                                        </div>
-                                        ${task.expanded ? 'Hide Details' : 'View Details'}
-                                    </button>
-                                    ${(isPointsModified || isAnyContentModified) ? '<span class="text-[10px] text-amber-600 font-semibold flex items-center gap-1"><i class="fa-solid fa-pen-nib"></i> Updated</span>' : ''}
-                                </div>
-
-                                <div id="details-${task.id.replace('.','-')}" class="${task.expanded ? '' : 'hidden'} mt-5 bg-slate-50 rounded-lg border border-slate-200 p-5 text-sm animate-slide-down">
-                                    <div class="flex flex-col gap-8">
-                                        <!-- Deliverables -->
-                                        <div>
-                                            <div class="flex justify-between items-center border-b border-slate-200 pb-2 mb-3">
-                                                <h4 class="font-bold text-slate-800 flex items-center gap-2">
-                                                    <i class="fa-solid fa-box-open text-slate-400"></i> Deliverables
-                                                    ${isDelivModified ? '<span class="w-2 h-2 rounded-full bg-purple-500" title="Edited"></span>' : ''}
-                                                </h4>
-                                                ${task.editingField !== 'deliverables' ? `<button onclick="enableEdit('${task.id}', 'deliverables')" class="text-blue-500 hover:text-blue-700 text-xs"><i class="fa-solid fa-pen"></i> Edit</button>` : ''}
-                                            </div>
-                                            ${renderContent('deliverables', task.deliverables)}
-                                        </div>
-                                        
-                                        <!-- Acceptance Criteria -->
-                                        <div>
-                                            <div class="flex justify-between items-center border-b border-slate-200 pb-2 mb-3">
-                                                <h4 class="font-bold text-slate-800 flex items-center gap-2">
-                                                    <i class="fa-solid fa-clipboard-check text-slate-400"></i> Acceptance Criteria
-                                                    ${isAcModified ? '<span class="w-2 h-2 rounded-full bg-purple-500" title="Edited"></span>' : ''}
-                                                </h4>
-                                                 ${task.editingField !== 'ac' ? `<button onclick="enableEdit('${task.id}', 'ac')" class="text-blue-500 hover:text-blue-700 text-xs"><i class="fa-solid fa-pen"></i> Edit</button>` : ''}
-                                            </div>
-                                            ${renderContent('ac', task.ac)}
-                                        </div>
-                                        
-                                        <!-- Dependencies -->
-                                        <div>
-                                            <h4 class="font-bold text-slate-800 mb-3 flex items-center gap-2 border-b border-slate-200 pb-2">
-                                                <i class="fa-solid fa-diagram-project text-slate-400"></i> Dependencies
-                                            </h4>
-                                            <div class="markdown-content text-slate-600 pl-2">
-                                                ${dependenciesHtml}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="w-24 flex flex-col items-end gap-1 pl-4 border-l border-slate-100 flex-shrink-0">
-                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Points</label>
-                                <input type="number" 
-                                       min="0" 
-                                       step="0.5"
-                                       value="${task.currentPoints}" 
-                                       onchange="updatePoints('${task.id}', this.value)"
-                                       class="w-full text-right text-xl font-bold ${isPointsModified ? 'text-amber-600 bg-amber-50 border-amber-300' : 'text-slate-700 bg-white border-slate-300'} border rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-blue-300">
-                                <div class="text-[10px] text-slate-400 font-medium mt-1">Orig: ${task.originalPoints}</div>
-                            </div>
-                        </div>
-                    `;
-                    tasksContainer.appendChild(taskEl);
-                });
-
-                container.appendChild(phaseEl);
+                const { element } = renderPhaseCard(phase);
+                container.appendChild(element);
             });
 
-            updateSummary(totalOriginal);
+            updateSummary();
         }
 
-        function updateSummary(originalTotal) {
-            let currentTotal = 0;
-            state.phases.forEach(p => p.tasks.forEach(t => currentTotal += t.currentPoints));
-
-            document.getElementById('original-points').textContent = originalTotal;
+        function updateHeaderTotals(original, current) {
+            document.getElementById('original-points').textContent = original;
             const totalEl = document.getElementById('total-points');
-            totalEl.textContent = currentTotal;
-            
-            if(currentTotal !== originalTotal) {
+            totalEl.textContent = current;
+
+            if (current !== original) {
                 totalEl.classList.remove('text-blue-700');
                 totalEl.classList.add('text-amber-600');
             } else {
-                 totalEl.classList.remove('text-amber-600');
-                 totalEl.classList.add('text-blue-700');
+                totalEl.classList.remove('text-amber-600');
+                totalEl.classList.add('text-blue-700');
             }
-            
+        }
+
+        function updatePhaseTotals() {
             state.phases.forEach(phase => {
-                 const pTotal = phase.tasks.reduce((acc, t) => acc + t.currentPoints, 0);
-                 const el = document.getElementById(`phase-${phase.id}-total`);
-                 if(el) el.textContent = pTotal;
+                const pTotal = phase.tasks.reduce((acc, t) => acc + t.currentPoints, 0);
+                const el = document.getElementById(`phase-${phase.id}-total`);
+                if (el) el.textContent = pTotal;
             });
         }
 
+        function updateSummary() {
+            const { original, current } = calculateTotals();
+            updateHeaderTotals(original, current);
+            updatePhaseTotals();
+        }
+
+        // ============ EVENT HANDLERS ============
         function updatePoints(taskId, value) {
-             let found = false;
-             state.phases.forEach(phase => {
-                 const task = phase.tasks.find(t => t.id === taskId);
-                 if (task) {
-                     task.currentPoints = parseFloat(value) || 0;
-                     found = true;
-                 }
-             });
-             
-             if(found) {
-                 const original = state.phases.reduce((acc, p) => acc + p.tasks.reduce((a, t) => a + t.originalPoints, 0), 0);
-                 updateSummary(original);
-                 render(); // Re-render to update visual styling
-             }
+            const found = findTask(taskId);
+            if (found) {
+                found.task.currentPoints = parseFloat(value) || 0;
+            }
+
+            updateSummary();
+            renderTOC();
+            render();
         }
 
         function toggleDetails(taskId) {
-             state.phases.forEach(phase => {
-                 const task = phase.tasks.find(t => t.id === taskId);
-                 if (task) {
-                     task.expanded = !task.expanded;
-                 }
-             });
-             render();
+            const found = findTask(taskId);
+            if (found) {
+                found.task.expanded = !found.task.expanded;
+            }
+            render();
         }
 
         function enableEdit(taskId, field) {
-            state.phases.forEach(phase => {
-                 const task = phase.tasks.find(t => t.id === taskId);
-                 if (task) {
-                     task.editingField = field;
-                 }
-             });
-             render();
+            const found = findTask(taskId);
+            if (found) {
+                found.task.editingField = field;
+            }
+            render();
         }
 
         function saveEdit(taskId, field) {
-             const el = document.getElementById(`edit-${taskId}-${field}`);
-             const newValue = el ? el.value : '';
-             
-             state.phases.forEach(phase => {
-                 const task = phase.tasks.find(t => t.id === taskId);
-                 if (task) {
-                     task[field] = newValue;
-                     task.editingField = null;
-                 }
-             });
-             render();
+            const el = document.getElementById(`edit-${taskId}-${field}`);
+            const newValue = el ? el.value : '';
+
+            const found = findTask(taskId);
+            if (found) {
+                found.task[field] = newValue;
+                found.task.editingField = null;
+            }
+            render();
         }
 
         function cancelEdit(taskId) {
-             state.phases.forEach(phase => {
-                 const task = phase.tasks.find(t => t.id === taskId);
-                 if (task) {
-                     task.editingField = null;
-                 }
-             });
-             render();
+            const found = findTask(taskId);
+            if (found) {
+                found.task.editingField = null;
+            }
+            render();
         }
 
+        // ============ EXPORT ============
         function exportCSV() {
             let csv = 'Phase,Task ID,Title,Risk,Original SP,Adjusted SP,Description,Deliverables\n';
             state.phases.forEach(phase => {
@@ -623,6 +675,7 @@
             document.body.removeChild(link);
         }
 
+        // ============ INITIALIZATION ============
         window.onload = function() {
             state.phases = parseMarkdown(MARKDOWN_SOURCE);
             renderTOC();

@@ -9,23 +9,32 @@ Estimator Generator - A Node.js CLI tool that transforms structured Markdown fil
 ## Build and Run Commands
 
 ```bash
-# Run the generator
-node src/generate.js <path-to-markdown-file> [subtitle]
+# Run the generator (Node.js v22+ with native TypeScript support)
+node src/generate.ts <input-file> [options]
 
 # Alternative using npm
-npm start <path-to-markdown-file> [subtitle]
+npm start <input-file> [options]
 
-# Example
-node src/generate.js execution-details-task-breakdown.md "Q1 2025"
+# Examples
+node src/generate.ts project.md
+node src/generate.ts project.md -s "Q1 2025"
+node src/generate.ts project.md -o ./output/estimate.html
+node src/generate.ts project.md --subtitle "Sprint 1" --output custom.html
+
+# Show help
+node src/generate.ts --help
+
+# Show version
+node src/generate.ts --version
 ```
 
-Output: Creates `<input-filename>-estimator.html` in the same directory as the input file.
+Output: Creates `<input-filename>-estimator.html` in the same directory as the input file (or custom path with `-o`).
 
 ## Architecture
 
 ### Core Components
 
-**src/generate.js** - CLI entry point that:
+**src/generate.ts** - CLI entry point (TypeScript, runs natively on Node.js v22+) that:
 1. Reads input Markdown file
 2. Extracts title from first H1 header
 3. Base64 encodes the Markdown content
@@ -40,7 +49,7 @@ Output: Creates `<input-filename>-estimator.html` in the same directory as the i
 ### Data Flow
 
 ```
-Markdown File → generate.js → Base64 encode → Inject into template.html → Output HTML
+Markdown File → generate.ts → Base64 encode → Inject into template.html → Output HTML
                                                     ↓
                                     Browser loads → Decode → Parse → Render UI
 ```
@@ -61,8 +70,16 @@ The template.html parser expects these exact regex patterns:
 
 ## Dependencies
 
-- Runtime: Node.js (uses only built-in `fs` and `path` modules)
+- Runtime: Node.js v22+ (uses native TypeScript support, built-in `fs`, `path`, `url`, `module`)
 - Client-side (CDN): Tailwind CSS, marked.js, Font Awesome
+- Dev: @types/node (for TypeScript IDE support)
+
+## TypeScript Configuration
+
+The project uses Node.js v22's native TypeScript support (type stripping) - no transpilation required:
+- ES modules with `import` syntax
+- `tsconfig.json` configured with `erasableSyntaxOnly: true` for compatibility
+- Run `.ts` files directly with `node`
 
 ## No Tests Currently
 

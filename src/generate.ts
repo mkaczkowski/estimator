@@ -1,12 +1,30 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
-const packageJson = require('../package.json');
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Use createRequire for JSON imports (avoids experimental warning)
+const require = createRequire(import.meta.url);
+
+interface PackageJson {
+    name: string;
+    version: string;
+}
+
+interface NodeError extends Error {
+    code?: string;
+}
+
+const packageJson: PackageJson = require('../package.json');
 
 // CLI argument parsing
-const args = process.argv.slice(2);
+const args: string[] = process.argv.slice(2);
 
 // Handle flags
 if (args.includes('--version') || args.includes('-v')) {
@@ -46,12 +64,12 @@ Markdown Format:
 }
 
 // Parse arguments
-let inputPath = null;
-let outputPath = null;
-let subtitle = new Date().toLocaleDateString();
+let inputPath: string | null = null;
+let outputPath: string | null = null;
+let subtitle: string = new Date().toLocaleDateString();
 
 for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
+    const arg: string = args[i];
 
     if (arg === '-o' || arg === '--output') {
         outputPath = args[++i];
@@ -90,7 +108,7 @@ if (!fs.existsSync(inputPath)) {
 }
 
 // Validate file extension
-const ext = path.extname(inputPath).toLowerCase();
+const ext: string = path.extname(inputPath).toLowerCase();
 if (ext !== '.md' && ext !== '.markdown') {
     console.error(`Error: Input file must be a Markdown file (.md or .markdown)`);
     console.error(`Got: ${ext || 'no extension'}`);
@@ -99,7 +117,7 @@ if (ext !== '.md' && ext !== '.markdown') {
 
 try {
     // Read Markdown content
-    const mdContent = fs.readFileSync(inputPath, 'utf8');
+    const mdContent: string = fs.readFileSync(inputPath, 'utf8');
 
     // Validate content
     if (!mdContent.trim()) {
@@ -108,12 +126,12 @@ try {
     }
 
     // Extract Title
-    const titleMatch = mdContent.match(/^# (.+)/m);
-    const title = titleMatch ? titleMatch[1].trim() : path.basename(inputPath, ext);
+    const titleMatch: RegExpMatchArray | null = mdContent.match(/^# (.+)/m);
+    const title: string = titleMatch ? titleMatch[1].trim() : path.basename(inputPath, ext);
 
     // Validate structure (basic checks)
-    const hasPhase = /^## Phase \d+:/m.test(mdContent);
-    const hasTask = /^### Task \d+/m.test(mdContent);
+    const hasPhase: boolean = /^## Phase \d+:/m.test(mdContent);
+    const hasTask: boolean = /^### Task \d+/m.test(mdContent);
 
     if (!hasPhase && !hasTask) {
         console.warn('Warning: No phases or tasks found in the Markdown file.');
@@ -121,17 +139,17 @@ try {
     }
 
     // Encode Markdown
-    const base64Content = Buffer.from(mdContent).toString('base64');
+    const base64Content: string = Buffer.from(mdContent).toString('base64');
 
     // Read Template
-    const templatePath = path.join(__dirname, 'template.html');
+    const templatePath: string = path.join(__dirname, 'template.html');
 
     if (!fs.existsSync(templatePath)) {
         console.error('Error: Template file not found. Package may be corrupted.');
         process.exit(1);
     }
 
-    let template = fs.readFileSync(templatePath, 'utf8');
+    let template: string = fs.readFileSync(templatePath, 'utf8');
 
     // Perform Replacements
     template = template.replace('{{TITLE}}', title);
@@ -140,14 +158,14 @@ try {
 
     // Determine Output Path
     if (!outputPath) {
-        const outputDir = path.dirname(inputPath);
-        const outputFilename = path.basename(inputPath, ext) + '-estimator.html';
+        const outputDir: string = path.dirname(inputPath);
+        const outputFilename: string = path.basename(inputPath, ext) + '-estimator.html';
         outputPath = path.join(outputDir, outputFilename);
     } else {
         outputPath = path.resolve(outputPath);
 
         // Ensure output directory exists
-        const outputDir = path.dirname(outputPath);
+        const outputDir: string = path.dirname(outputPath);
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
@@ -159,12 +177,13 @@ try {
     console.log(`✓ Generated estimator: ${outputPath}`);
 
 } catch (error) {
-    if (error.code === 'EACCES') {
+    const nodeError = error as NodeError;
+    if (nodeError.code === 'EACCES') {
         console.error(`Error: Permission denied accessing file`);
-    } else if (error.code === 'ENOENT') {
+    } else if (nodeError.code === 'ENOENT') {
         console.error(`Error: File or directory not found`);
     } else {
-        console.error('Error generating estimator:', error.message);
+        console.error('Error generating estimator:', nodeError.message);
     }
     process.exit(1);
 }
