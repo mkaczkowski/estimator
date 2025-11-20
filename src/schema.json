@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Estimator Project Schema",
+  "description": "Schema for project estimation data used by the Estimator Generator",
+  "type": "object",
+  "required": ["title", "phases"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Project title displayed in the header",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional project description or overview"
+    },
+    "phases": {
+      "type": "array",
+      "description": "Project phases containing tasks",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "tasks"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Phase number",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "description": "Phase name",
+            "minLength": 1
+          },
+          "objective": {
+            "type": "string",
+            "description": "Phase objective or goal"
+          },
+          "tasks": {
+            "type": "array",
+            "description": "Tasks within this phase",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "title", "storyPoints"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Task ID (e.g., '1.1', '2.3')",
+                  "pattern": "^\\d+\\.\\d+$"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Task name",
+                  "minLength": 1
+                },
+                "storyPoints": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "object",
+                      "required": ["min", "max"],
+                      "properties": {
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Range of story points (will be averaged)"
+                    }
+                  ]
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Task description (supports Markdown)"
+                },
+                "deliverables": {
+                  "type": "array",
+                  "description": "List of deliverables",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "acceptanceCriteria": {
+                  "type": "array",
+                  "description": "List of acceptance criteria",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "dependencies": {
+                  "type": "array",
+                  "description": "List of task dependencies",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Task ID or free-form dependency text"
+                      },
+                      {
+                        "type": "object",
+                        "required": ["taskId"],
+                        "properties": {
+                          "taskId": {
+                            "type": "string",
+                            "pattern": "^\\d+\\.\\d+$",
+                            "description": "Referenced task ID"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Additional context for the dependency"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "risk": {
+                  "type": "object",
+                  "required": ["level"],
+                  "properties": {
+                    "level": {
+                      "type": "string",
+                      "enum": ["low", "medium", "high"],
+                      "description": "Risk level"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Risk explanation or mitigation notes"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

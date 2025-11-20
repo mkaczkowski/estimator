@@ -5,7 +5,7 @@
 [![Node.js Version](https://img.shields.io/node/v/estimator-generator.svg)](https://nodejs.org)
 [![CI](https://github.com/mkaczkowski/estimator/actions/workflows/ci.yml/badge.svg)](https://github.com/mkaczkowski/estimator/actions/workflows/ci.yml)
 
-A Node.js CLI tool that transforms structured Markdown files into interactive HTML estimators for project planning.
+A Node.js CLI tool that transforms structured JSON files into interactive HTML estimators for project planning.
 
 ## Installation
 
@@ -36,87 +36,160 @@ estimator <input-file> [options]
 
 ```bash
 # Basic usage
-estimator project.md
+estimator project.json
 
 # With subtitle
-estimator project.md -s "Q1 2025"
+estimator project.json -s "Q1 2025"
 
 # Custom output path
-estimator project.md -o ./output/estimate.html
+estimator project.json -o ./output/estimate.html
 
 # Combined options
-estimator project.md --subtitle "Sprint 1" --output custom.html
+estimator project.json --subtitle "Sprint 1" --output custom.html
 ```
 
 Output: Creates an HTML file (default: `<input-filename>-estimator.html`) in the same directory as the input file.
 
-## Markdown Format
+## JSON Format
 
-The source Markdown file must follow a specific structure for the parser to work correctly.
+The source JSON file must follow the schema defined in `src/schema.json`. The tool validates input against this schema before generating the HTML.
 
-### 1. Document Title
-The first H1 header is used as the estimator title.
-```markdown
-# Project Name Plan
+### Basic Structure
+
+```json
+{
+  "title": "Project Name",
+  "description": "Optional project description",
+  "phases": [
+    {
+      "id": 1,
+      "title": "Phase Name",
+      "objective": "Optional phase objective",
+      "tasks": [...]
+    }
+  ]
+}
 ```
 
-### 2. Phases
-Phases are defined by H2 headers starting with "Phase".
-```markdown
-## Phase 1: Initialization
+### Task Structure
+
+```json
+{
+  "id": "1.1",
+  "title": "Task Name",
+  "storyPoints": 3,
+  "description": "Task description (supports Markdown)",
+  "deliverables": [
+    "Deliverable 1",
+    "Deliverable 2"
+  ],
+  "acceptanceCriteria": [
+    "Criterion 1",
+    "Criterion 2"
+  ],
+  "dependencies": [
+    { "taskId": "1.1" },
+    { "taskId": "1.2", "description": "Optional context" }
+  ],
+  "risk": {
+    "level": "low",
+    "description": "Optional risk description"
+  }
+}
 ```
 
-### 3. Tasks
-Tasks are defined by H3 headers starting with "Task".
-```markdown
-### Task 1.1: Setup Repository
+### Fields Reference
+
+#### Root Object (required)
+- `title` (string, required) - Project title displayed in the header
+- `description` (string) - Optional project description
+- `phases` (array, required) - Array of project phases
+
+#### Phase Object (required)
+- `id` (integer, required) - Phase number (1, 2, 3...)
+- `title` (string, required) - Phase name
+- `objective` (string) - Optional phase objective
+- `tasks` (array, required) - Array of tasks
+
+#### Task Object (required)
+- `id` (string, required) - Task ID in format "X.Y" (e.g., "1.1", "2.3")
+- `title` (string, required) - Task name
+- `storyPoints` (number or object, required) - Single number or `{"min": X, "max": Y}` for ranges (averaged)
+- `description` (string) - Task description (supports Markdown)
+- `deliverables` (array of strings) - List of deliverables
+- `acceptanceCriteria` (array of strings) - List of acceptance criteria
+- `dependencies` (array) - Task dependencies as strings or objects with `taskId`
+- `risk` (object) - Risk with `level` ("low", "medium", "high") and optional `description`
+
+### Complete Example
+
+```json
+{
+  "title": "Sample Project Estimation",
+  "description": "A sample project demonstrating the JSON estimator format",
+  "phases": [
+    {
+      "id": 1,
+      "title": "Setup & Configuration",
+      "objective": "Initialize project structure",
+      "tasks": [
+        {
+          "id": "1.1",
+          "title": "Project Initialization",
+          "storyPoints": 2,
+          "description": "Set up the initial project structure with configuration files.",
+          "deliverables": [
+            "Package.json with dependencies",
+            "TypeScript configuration",
+            "Git repository"
+          ],
+          "acceptanceCriteria": [
+            "All config files created",
+            "Dependencies install without errors",
+            "Dev server starts successfully"
+          ],
+          "dependencies": [],
+          "risk": {
+            "level": "low"
+          }
+        },
+        {
+          "id": "1.2",
+          "title": "CI/CD Setup",
+          "storyPoints": { "min": 2, "max": 4 },
+          "description": "Configure continuous integration pipeline.",
+          "deliverables": [
+            "GitHub Actions workflow",
+            "Automated tests"
+          ],
+          "acceptanceCriteria": [
+            "CI runs on every push",
+            "Tests execute automatically"
+          ],
+          "dependencies": [
+            { "taskId": "1.1" }
+          ],
+          "risk": {
+            "level": "medium",
+            "description": "Integration with external services"
+          }
+        }
+      ]
+    }
+  ]
+}
 ```
 
-### 4. Story Points
-Story points must be bolded and in parentheses. Ranges are supported (averaged).
-```markdown
-**Story Points: (3)**
-**Story Points: (1-3)**
-```
+## JSON Schema
 
-### 5. Task Details
-The following bold headers are recognized within a task block:
-
-- `**Description:**` - Task description (supports Markdown)
-- `**Deliverables:**` - List of deliverables (supports Markdown)
-- `**Acceptance Criteria:**` - Checklist or list (supports Markdown)
-- `**Dependencies:**` - Text or comma-separated list. References to other tasks (e.g., "Task 1.2") are automatically linked
-- `**Risk:**` - "Low", "Medium", or "High" (optionally followed by text)
-
-### Example Task Block
-
-```markdown
-### Task 1.1: Setup Environment
-
-**Story Points: (2)**
-
-**Description:**
-Initialize the project repository and configure build tools.
-
-**Deliverables:**
-- Repo created
-- CI pipeline configured
-
-**Acceptance Criteria:**
-- [ ] Build passes
-- [ ] Tests run
-
-**Dependencies:** None
-
-**Risk:** Low
----
-```
-
-Note: The `---` separator is optional but recommended for readability in the raw Markdown.
+The full JSON schema is available in `src/schema.json`. You can use it for:
+- IDE autocomplete and validation
+- Programmatic validation
+- Documentation reference
 
 ## Examples
 
-See the `examples/` directory for sample Markdown files.
+See the `examples/` directory for sample JSON files.
 
 ## Contributing
 

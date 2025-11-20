@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import Ajv from 'ajv';
+import type { EstimatorData } from './types.ts';
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +24,11 @@ interface NodeError extends Error {
 }
 
 const packageJson: PackageJson = require('../package.json');
+const schema = require('./schema.json');
+
+// Initialize AJV validator
+const ajv = new Ajv({ allErrors: true });
+const validateSchema = ajv.compile(schema);
 
 // CLI argument parsing
 const args: string[] = process.argv.slice(2);
@@ -36,13 +43,13 @@ if (args.includes('--help') || args.includes('-h') || args.length === 0) {
     console.log(`
 ${packageJson.name} v${packageJson.version}
 
-Generate interactive HTML estimators from structured Markdown files.
+Generate interactive HTML estimators from structured JSON files.
 
 Usage:
   estimator <input-file> [options]
 
 Arguments:
-  <input-file>          Path to the source Markdown file (required)
+  <input-file>          Path to the source JSON file (required)
 
 Options:
   -o, --output <path>   Custom output file path
@@ -51,13 +58,13 @@ Options:
   -v, --version         Show version number
 
 Examples:
-  estimator project.md
-  estimator project.md -s "Q1 2025"
-  estimator project.md -o ./output/estimate.html
-  estimator project.md --subtitle "Sprint 1" --output custom.html
+  estimator project.json
+  estimator project.json -s "Q1 2025"
+  estimator project.json -o ./output/estimate.html
+  estimator project.json --subtitle "Sprint 1" --output custom.html
 
-Markdown Format:
-  See README.md for the required Markdown structure.
+JSON Format:
+  See README.md for the required JSON schema.
   Example files available in the examples/ directory.
 `);
     process.exit(0);
@@ -109,37 +116,48 @@ if (!fs.existsSync(inputPath)) {
 
 // Validate file extension
 const ext: string = path.extname(inputPath).toLowerCase();
-if (ext !== '.md' && ext !== '.markdown') {
-    console.error(`Error: Input file must be a Markdown file (.md or .markdown)`);
+if (ext !== '.json') {
+    console.error(`Error: Input file must be a JSON file (.json)`);
     console.error(`Got: ${ext || 'no extension'}`);
     process.exit(1);
 }
 
 try {
-    // Read Markdown content
-    const mdContent: string = fs.readFileSync(inputPath, 'utf8');
+    // Read JSON content
+    const jsonContent: string = fs.readFileSync(inputPath, 'utf8');
 
     // Validate content
-    if (!mdContent.trim()) {
+    if (!jsonContent.trim()) {
         console.error('Error: Input file is empty');
         process.exit(1);
     }
 
-    // Extract Title
-    const titleMatch: RegExpMatchArray | null = mdContent.match(/^# (.+)/m);
-    const title: string = titleMatch ? titleMatch[1].trim() : path.basename(inputPath, ext);
-
-    // Validate structure (basic checks)
-    const hasPhase: boolean = /^## Phase \d+:/m.test(mdContent);
-    const hasTask: boolean = /^### Task \d+/m.test(mdContent);
-
-    if (!hasPhase && !hasTask) {
-        console.warn('Warning: No phases or tasks found in the Markdown file.');
-        console.warn('Expected format: "## Phase N: Name" and "### Task N.N: Name"');
+    // Parse JSON
+    let data: EstimatorData;
+    try {
+        data = JSON.parse(jsonContent);
+    } catch (parseError) {
+        const err = parseError as Error;
+        console.error('Error: Invalid JSON syntax');
+        console.error(err.message);
+        process.exit(1);
     }
 
-    // Encode Markdown
-    const base64Content: string = Buffer.from(mdContent).toString('base64');
+    // Validate against schema
+    const valid = validateSchema(data);
+    if (!valid) {
+        console.error('Error: JSON validation failed');
+        if (validateSchema.errors) {
+            validateSchema.errors.forEach(error => {
+                const path = error.instancePath || '/';
+                console.error(`  - ${path}: ${error.message}`);
+            });
+        }
+        process.exit(1);
+    }
+
+    // Extract title from validated data
+    const title: string = data.title;
 
     // Read Template
     const templatePath: string = path.join(__dirname, 'template.html');
@@ -154,7 +172,7 @@ try {
     // Perform Replacements
     template = template.replace('{{TITLE}}', title);
     template = template.replace('{{SUBTITLE}}', subtitle);
-    template = template.replace('{{MARKDOWN_BASE64}}', base64Content);
+    template = template.replace('{{DATA_JSON}}', JSON.stringify(data));
 
     // Determine Output Path
     if (!outputPath) {

@@ -129,13 +129,7 @@
 
     <script>
         // ============ CONSTANTS ============
-        const MARKDOWN_BASE64 = "{{MARKDOWN_BASE64}}";
-
-        const REGEX = {
-            phase: /^## Phase (\d+): (.+)/,
-            task: /^### Task (\d+(?:\.\d+)?): (.+)/,
-            points: /\*\*Story Points:\*\*\s*(\d+(?:-\d+)?)/
-        };
+        const DATA = {{DATA_JSON}};
 
         const RISK_CONFIG = {
             high: { class: 'bg-red-100 text-red-700 border-red-200', label: 'High Risk' },
@@ -147,19 +141,6 @@
         let state = { phases: [] };
 
         // ============ UTILITIES ============
-        function decodeBase64(str) {
-            try {
-                const binaryString = window.atob(str);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                return new TextDecoder().decode(bytes);
-            } catch (e) {
-                console.error("Error decoding Base64 content:", e);
-                return "";
-            }
-        }
 
         function findTask(taskId) {
             for (const phase of state.phases) {
@@ -179,33 +160,43 @@
             return `<span class="px-2 py-1 rounded ${config.class} text-[10px] font-bold uppercase tracking-wide border">${config.label}</span>`;
         }
 
-        function formatDependencies(str) {
-            if (!str || str.trim().toLowerCase() === 'none') {
+        function formatDependencies(deps) {
+            if (!deps || !Array.isArray(deps) || deps.length === 0) {
                 return '<p class="text-slate-400 italic text-sm">None</p>';
             }
-            const parts = str.split(/,|\n/).map(s => s.trim()).filter(s => s);
-            if (parts.length === 0) return '';
 
             let listHtml = '<ul class="space-y-1">';
-            parts.forEach(part => {
-                const match = part.match(/(Task\s+(\d+(?:\.\d+)?))/i);
-                if (match) {
-                    const taskId = match[2];
-                    listHtml += `<li><a href="#task-${taskId}-anchor" onclick="scrollToElement('task-${taskId}-anchor'); return false;" class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-1.5 py-0.5 -ml-1.5 rounded transition-colors font-medium"><i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${part}</a></li>`;
-                } else {
-                    listHtml += `<li class="text-slate-600 flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-slate-300"></span>${part}</li>`;
+            deps.forEach(dep => {
+                if (typeof dep === 'object' && dep.taskId) {
+                    const taskId = dep.taskId;
+                    const text = dep.description ? `Task ${taskId}: ${dep.description}` : `Task ${taskId}`;
+                    listHtml += `<li><a href="#task-${taskId}-anchor" onclick="scrollToElement('task-${taskId}-anchor'); return false;" class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-1.5 py-0.5 -ml-1.5 rounded transition-colors font-medium"><i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${text}</a></li>`;
+                } else if (typeof dep === 'string') {
+                    // Check if it's a task ID pattern
+                    const match = dep.match(/^(\d+\.\d+)$/);
+                    if (match) {
+                        const taskId = match[1];
+                        listHtml += `<li><a href="#task-${taskId}-anchor" onclick="scrollToElement('task-${taskId}-anchor'); return false;" class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-1.5 py-0.5 -ml-1.5 rounded transition-colors font-medium"><i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Task ${taskId}</a></li>`;
+                    } else {
+                        listHtml += `<li class="text-slate-600 flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-slate-300"></span>${dep}</li>`;
+                    }
                 }
             });
             listHtml += '</ul>';
             return listHtml;
         }
 
-        function parseStoryPoints(str) {
-            if (str.includes('-')) {
-                const parts = str.split('-');
-                return (parseFloat(parts[0]) + parseFloat(parts[1])) / 2;
+        function calculateStoryPoints(sp) {
+            if (typeof sp === 'number') return sp;
+            if (sp && typeof sp === 'object' && sp.min !== undefined && sp.max !== undefined) {
+                return (sp.min + sp.max) / 2;
             }
-            return parseFloat(str);
+            return 0;
+        }
+
+        function formatArrayToMarkdown(items) {
+            if (!items || !Array.isArray(items) || items.length === 0) return '';
+            return items.map(item => `- ${item}`).join('\n');
         }
 
         function getTaskModificationStatus(task) {
@@ -231,142 +222,34 @@
             return { original, current };
         }
 
-        const MARKDOWN_SOURCE = decodeBase64(MARKDOWN_BASE64);
-
         // ============ PARSING ============
-        function parseMarkdown(md) {
-            const lines = md.split('\n');
-            const phases = [];
-            let currentPhase = null;
-            let currentTask = null;
-            let currentSection = null;
-            let rawSectionContent = [];
-            
-            const saveSection = () => {
-                if (currentTask && currentSection && rawSectionContent.length > 0) {
-                    const content = rawSectionContent.join('\n').trim();
-                    if (currentSection === 'desc') currentTask.description = content;
-                    else if (currentSection === 'deliv') {
-                        currentTask.deliverables = content;
-                        if (currentTask.originalDeliverables === undefined) currentTask.originalDeliverables = content;
-                    }
-                    else if (currentSection === 'ac') {
-                        currentTask.ac = content;
-                        if (currentTask.originalAc === undefined) currentTask.originalAc = content;
-                    }
-                    else if (currentSection === 'deps') currentTask.dependencies = content;
-                }
-                rawSectionContent = [];
-            };
+        function parseData(data) {
+            return data.phases.map(phase => ({
+                id: String(phase.id),
+                title: phase.title,
+                tasks: phase.tasks.map(task => {
+                    const points = calculateStoryPoints(task.storyPoints);
+                    const deliverables = formatArrayToMarkdown(task.deliverables);
+                    const ac = formatArrayToMarkdown(task.acceptanceCriteria);
 
-            lines.forEach(line => {
-                const trimmed = line.trim();
-
-                // Phase
-                const phaseMatch = trimmed.match(REGEX.phase);
-                if (phaseMatch) {
-                    saveSection();
-                    currentPhase = {
-                        id: phaseMatch[1],
-                        title: phaseMatch[2],
-                        tasks: []
-                    };
-                    phases.push(currentPhase);
-                    currentTask = null;
-                    return;
-                }
-
-                // Task
-                const taskMatch = trimmed.match(REGEX.task);
-                if (taskMatch) {
-                    saveSection();
-                    currentTask = {
-                        id: taskMatch[1],
-                        title: taskMatch[2],
-                        originalPoints: 0,
-                        currentPoints: 0,
-                        description: "",
-                        deliverables: "",
-                        ac: "",
-                        dependencies: "None",
-                        risk: "Low",
+                    return {
+                        id: task.id,
+                        title: task.title,
+                        originalPoints: points,
+                        currentPoints: points,
+                        description: task.description || '',
+                        deliverables: deliverables,
+                        originalDeliverables: deliverables,
+                        ac: ac,
+                        originalAc: ac,
+                        dependencies: task.dependencies || [],
+                        risk: task.risk?.level || 'low',
+                        riskDescription: task.risk?.description || '',
                         expanded: false,
                         editingField: null
                     };
-                    if (currentPhase) currentPhase.tasks.push(currentTask);
-                    currentSection = null;
-                    return;
-                }
-
-                // Points
-                if (currentTask && REGEX.points.test(trimmed)) {
-                    const pointsMatch = trimmed.match(REGEX.points);
-                    const pointsVal = parseStoryPoints(pointsMatch[1]);
-
-                    if (currentTask.originalPoints === 0) {
-                        currentTask.originalPoints = pointsVal;
-                        currentTask.currentPoints = pointsVal;
-                    }
-                    return;
-                }
-
-                // Details Sections
-                if (currentTask) {
-                    if (trimmed.startsWith('**Description:**')) { 
-                        saveSection(); 
-                        currentSection = 'desc'; 
-                        return; 
-                    }
-                    if (trimmed.startsWith('**Deliverables:**')) { 
-                        saveSection(); 
-                        currentSection = 'deliv'; 
-                        return; 
-                    }
-                    if (trimmed.startsWith('**Acceptance Criteria:**')) { 
-                        saveSection(); 
-                        currentSection = 'ac'; 
-                        return; 
-                    }
-                    if (trimmed.startsWith('**Dependencies:**')) { 
-                        saveSection(); 
-                        currentSection = 'deps';
-                        const inlineMatch = trimmed.match(/\*\*Dependencies:\*\*\s*(.+)/);
-                        if (inlineMatch && inlineMatch[1].trim()) {
-                            rawSectionContent.push(inlineMatch[1].trim());
-                        }
-                        return; 
-                    }
-                    if (trimmed.startsWith('**Risk:**')) { 
-                        saveSection();
-                        const riskMatch = trimmed.match(/\*\*Risk:\*\*\s*(.+)/);
-                        if (riskMatch) {
-                             let r = riskMatch[1].split('-')[0].trim();
-                             r = r.replace(/\*+$/, '').trim();
-                             currentTask.risk = r;
-                        }
-                        currentSection = null; 
-                        return; 
-                    }
-                    if (trimmed === '---') { 
-                        saveSection(); 
-                        currentSection = null; 
-                        return; 
-                    }
-
-                    if (currentSection) {
-                        rawSectionContent.push(line); 
-                    }
-                }
-            });
-            saveSection(); // Save last section
-            
-            // Fallback for initialization if no content was found during parse
-             phases.forEach(p => p.tasks.forEach(t => {
-                if(t.originalDeliverables === undefined) t.originalDeliverables = t.deliverables;
-                if(t.originalAc === undefined) t.originalAc = t.ac;
-             }));
-            
-            return phases;
+                })
+            }));
         }
 
         // ============ TABLE OF CONTENTS ============
@@ -443,7 +326,7 @@
             const status = getTaskModificationStatus(task);
             const riskBadge = getRiskBadge(task.risk);
             const descriptionHtml = marked.parse(task.description || '');
-            const dependenciesHtml = formatDependencies(task.dependencies || '');
+            const dependenciesHtml = formatDependencies(task.dependencies);
 
             return `
                 <div class="flex items-start gap-5">
@@ -654,13 +537,25 @@
 
         // ============ EXPORT ============
         function exportCSV() {
-            let csv = 'Phase,Task ID,Title,Risk,Original SP,Adjusted SP,Description,Deliverables\n';
+            let csv = 'Phase,Task ID,Title,Risk,Original SP,Adjusted SP,Description,Deliverables,Dependencies\n';
             state.phases.forEach(phase => {
                 phase.tasks.forEach(task => {
                     const desc = (task.description || '').replace(/"/g, '""');
                     const title = (task.title || '').replace(/"/g, '""');
                     const deliv = (task.deliverables || '').replace(/\n/g, '; ').replace(/"/g, '""');
-                    csv += `"${phase.title}",${task.id},"${title}",${task.risk},${task.originalPoints},${task.currentPoints},"${desc}","${deliv}"\n`;
+
+                    // Format dependencies for CSV
+                    let depsStr = '';
+                    if (task.dependencies && Array.isArray(task.dependencies)) {
+                        depsStr = task.dependencies.map(dep => {
+                            if (typeof dep === 'object' && dep.taskId) {
+                                return dep.description ? `${dep.taskId}: ${dep.description}` : dep.taskId;
+                            }
+                            return dep;
+                        }).join('; ').replace(/"/g, '""');
+                    }
+
+                    csv += `"${phase.title}",${task.id},"${title}",${task.risk},${task.originalPoints},${task.currentPoints},"${desc}","${deliv}","${depsStr}"\n`;
                 });
             });
 
@@ -677,7 +572,7 @@
 
         // ============ INITIALIZATION ============
         window.onload = function() {
-            state.phases = parseMarkdown(MARKDOWN_SOURCE);
+            state.phases = parseData(DATA);
             renderTOC();
             render();
         };

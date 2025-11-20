@@ -1,0 +1,205 @@
+{
+  "title": "Sample Project Estimation",
+  "description": "A sample project demonstrating the JSON estimator format with multiple phases and tasks.",
+  "phases": [
+    {
+      "id": 1,
+      "title": "Setup & Configuration",
+      "objective": "Initialize project structure and development environment",
+      "tasks": [
+        {
+          "id": "1.1",
+          "title": "Project Initialization",
+          "storyPoints": 2,
+          "description": "Set up the initial project structure with configuration files, dependencies, and development tooling.",
+          "deliverables": [
+            "Package.json with all dependencies",
+            "TypeScript configuration",
+            "ESLint and Prettier setup",
+            "Git repository initialization"
+          ],
+          "acceptanceCriteria": [
+            "All configuration files are created and valid",
+            "Dependencies install without errors",
+            "Development server starts successfully",
+            "Linting passes with no errors"
+          ],
+          "dependencies": [],
+          "risk": {
+            "level": "low"
+          }
+        },
+        {
+          "id": "1.2",
+          "title": "CI/CD Pipeline Setup",
+          "storyPoints": 3,
+          "description": "Configure continuous integration and deployment pipelines for automated testing and deployment.",
+          "deliverables": [
+            "GitHub Actions workflow files",
+            "Automated test runner configuration",
+            "Deployment scripts",
+            "Environment variable management"
+          ],
+          "acceptanceCriteria": [
+            "CI pipeline runs on every push",
+            "Tests execute automatically",
+            "Deployment triggers on main branch merge",
+            "Secrets are properly managed"
+          ],
+          "dependencies": [
+            { "taskId": "1.1" }
+          ],
+          "risk": {
+            "level": "low"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Core Features",
+      "objective": "Implement the main application functionality",
+      "tasks": [
+        {
+          "id": "2.1",
+          "title": "User Interface Components",
+          "storyPoints": 5,
+          "description": "Create the main UI components including layout, navigation, and reusable elements.",
+          "deliverables": [
+            "Header and navigation component",
+            "Main content layout",
+            "Footer component",
+            "Responsive styles for all breakpoints",
+            "Reusable button and form components"
+          ],
+          "acceptanceCriteria": [
+            "All components render correctly",
+            "Layout is responsive on mobile, tablet, and desktop",
+            "Styling follows design system guidelines",
+            "Accessibility requirements met (WCAG 2.1 AA)"
+          ],
+          "dependencies": [
+            { "taskId": "1.1" }
+          ],
+          "risk": {
+            "level": "low"
+          }
+        },
+        {
+          "id": "2.2",
+          "title": "Data Management Layer",
+          "storyPoints": { "min": 5, "max": 8 },
+          "description": "Implement data fetching, state management, caching, and data transformation logic.",
+          "deliverables": [
+            "API client with error handling",
+            "State management setup (Redux/Zustand)",
+            "Data transformation utilities",
+            "Caching layer for API responses",
+            "Loading and error state handling"
+          ],
+          "acceptanceCriteria": [
+            "Data fetches correctly from all API endpoints",
+            "State updates are predictable and debuggable",
+            "Errors are handled gracefully with user feedback",
+            "Loading states are displayed appropriately",
+            "Cache invalidation works correctly"
+          ],
+          "dependencies": [
+            { "taskId": "2.1" }
+          ],
+          "risk": {
+            "level": "medium",
+            "description": "External API dependency may cause integration challenges"
+          }
+        },
+        {
+          "id": "2.3",
+          "title": "Authentication System",
+          "storyPoints": 5,
+          "description": "Implement user authentication including login, logout, session management, and protected routes.",
+          "deliverables": [
+            "Login and registration forms",
+            "JWT token management",
+            "Protected route wrapper",
+            "Session persistence",
+            "Password reset flow"
+          ],
+          "acceptanceCriteria": [
+            "Users can register and login successfully",
+            "Sessions persist across browser refreshes",
+            "Protected routes redirect unauthenticated users",
+            "Tokens refresh automatically before expiry",
+            "Password reset emails are sent correctly"
+          ],
+          "dependencies": [
+            { "taskId": "2.1" },
+            { "taskId": "2.2" }
+          ],
+          "risk": {
+            "level": "medium",
+            "description": "Security considerations require careful implementation"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Testing & Documentation",
+      "objective": "Ensure code quality and provide comprehensive documentation",
+      "tasks": [
+        {
+          "id": "3.1",
+          "title": "Unit and Integration Testing",
+          "storyPoints": 5,
+          "description": "Write comprehensive tests for all components and features.",
+          "deliverables": [
+            "Unit tests for all utility functions",
+            "Component tests with React Testing Library",
+            "Integration tests for API flows",
+            "Test coverage report configuration",
+            "Mock service worker setup for API mocking"
+          ],
+          "acceptanceCriteria": [
+            "Test coverage is above 80%",
+            "All tests pass in CI pipeline",
+            "Critical paths have integration tests",
+            "Tests run in under 2 minutes"
+          ],
+          "dependencies": [
+            { "taskId": "2.1" },
+            { "taskId": "2.2" },
+            { "taskId": "2.3" }
+          ],
+          "risk": {
+            "level": "low"
+          }
+        },
+        {
+          "id": "3.2",
+          "title": "Documentation",
+          "storyPoints": 3,
+          "description": "Create comprehensive documentation for developers and end users.",
+          "deliverables": [
+            "README with setup instructions",
+            "API documentation",
+            "Component storybook",
+            "Architecture decision records",
+            "Deployment guide"
+          ],
+          "acceptanceCriteria": [
+            "New developers can set up project following README",
+            "All API endpoints are documented",
+            "Storybook showcases all components",
+            "Architecture decisions are recorded and justified"
+          ],
+          "dependencies": [
+            { "taskId": "3.1" }
+          ],
+          "risk": {
+            "level": "low"
+          }
+        }
+      ]
+    }
+  ]
+}
